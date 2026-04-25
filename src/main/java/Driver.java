@@ -2,7 +2,7 @@ import com.cpp.project1011.jackAnalyzer.JackAnalyzer;
 
 public class Driver {
     public static void main(String[] args) {
-        JackAnalyzer analyzer = new JackAnalyzer("src/main/resources/Square.jack");
+        JackAnalyzer analyzer = new JackAnalyzer("src/main/resources/Main.jack");
 
         try {
             analyzer.analyze();

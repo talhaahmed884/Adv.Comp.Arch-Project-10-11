@@ -264,7 +264,51 @@ public class CompilationEngineXML implements CompilationEngine {
 
     @Override
     public void compileVarDec() {
+        Element varSection = document.createElement(NonTerminalTag.VAR_DEC.toString());
+        this.parentElement.appendChild(varSection);
 
+        //  1. adding keyword element
+        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.VAR});
+        writeKeywordElement(varSection);
+        tokenizer.advance();
+
+        // 2. adding var elements
+        while (tokenizer.hasMoreTokens()) {
+            TokenType type = TokenType.valueOf(tokenizer.tokenType());
+
+            switch (type) {
+                // 2A. adding identifier element
+                case IDENTIFIER: {
+                    verifyIdentifierOrThrowError();
+                    writeIdentifierElement(varSection);
+                }
+                break;
+
+                // 2B. adding symbol element
+                case SYMBOL: {
+                    verifySymbolOrThrowError(new Symbol[]{Symbol.COMMA, Symbol.SEMICOLON});
+                    Symbol symbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
+                    writeSymbolElement(varSection);
+
+                    if (symbol == Symbol.SEMICOLON) {
+                        return;
+                    }
+                }
+                break;
+
+                case KEYWORD: {
+                    verifyKeywordOrThrowError(new KeyWord[]{KeyWord.INT, KeyWord.CHAR, KeyWord.BOOLEAN});
+                    writeKeywordElement(varSection);
+                }
+                break;
+
+                default: {
+                    throw new InvalidParameterException("Invalid token type. Expected IDENTIFIER or SYMBOL. " +
+                            "Got token type: " + tokenizer.tokenType());
+                }
+            }
+            tokenizer.advance();
+        }
     }
 
     @Override
@@ -272,6 +316,7 @@ public class CompilationEngineXML implements CompilationEngine {
         // 1. adding statements section
         Element statementsSection = document.createElement(NonTerminalTag.STATEMENTS.toString());
         this.parentElement.appendChild(statementsSection);
+        boolean hasStatements = false;
 
         while (tokenizer.hasMoreTokens()) {
             TokenType type = TokenType.valueOf(tokenizer.tokenType());
@@ -319,8 +364,8 @@ public class CompilationEngineXML implements CompilationEngine {
                             this.parentElement = statementsSection;
                             this.compileIf();
                             this.parentElement = parentCopy;
+                            continue;
                         }
-                        break;
 
                         default: {
                             throw new InvalidParameterException("Invalid token type. Expected LET, DO, RETURN, or IF. " +
@@ -334,6 +379,9 @@ public class CompilationEngineXML implements CompilationEngine {
                 case SYMBOL: {
                     verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_END});
                     // 4A. statements has ended. Traverse back to caller!!
+                    if (!hasStatements) {
+                        statementsSection.setTextContent("\n");
+                    }
                     return;
                 }
 
@@ -343,6 +391,7 @@ public class CompilationEngineXML implements CompilationEngine {
                 }
             }
 
+            hasStatements = true;
             tokenizer.advance();
         }
     }
@@ -493,21 +542,26 @@ public class CompilationEngineXML implements CompilationEngine {
         writeSymbolElement(ifSection);
         tokenizer.advance();
 
-        // 6. adding symbol element
-        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_START});
-        writeSymbolElement(ifSection);
+        // 6. adding if section body
+        this.ifElseBody(ifSection);
+
+        // 7. verifying existence of else block
+        TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
+        if (tokenType != TokenType.KEYWORD) {
+            return;
+        }
+        KeyWord keyWord = KeyWord.fromValue(tokenizer.keyWord());
+        if (keyWord != KeyWord.ELSE) {
+            return;
+        }
+
+        // 8. adding keyword element
+        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.ELSE});
+        writeKeywordElement(ifSection);
         tokenizer.advance();
 
-        // 7. adding statements section
-        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.LET, KeyWord.DO, KeyWord.IF, KeyWord.WHILE});
-        parentCopy = this.parentElement;
-        this.parentElement = ifSection;
-        this.compileStatements();
-        this.parentElement = parentCopy;
-
-        // 8. adding symbol element
-        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_END});
-        writeSymbolElement(ifSection);
+        // 9. adding else section body
+        this.ifElseBody(ifSection);
     }
 
     @Override
@@ -616,16 +670,48 @@ public class CompilationEngineXML implements CompilationEngine {
         writeSymbolElement(subroutineBodySection);
         tokenizer.advance();
 
-        // 3. adding subroutine body statements section
+        // 3. branching to subroutine variables declaration
+        TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
+        if (tokenType == TokenType.KEYWORD) {
+            KeyWord keyWord = KeyWord.fromValue(tokenizer.keyWord());
+            if (keyWord == KeyWord.VAR) {
+                // 3A. adding variables declaration
+                Element parentCopy = this.parentElement;
+                this.parentElement = subroutineBodySection;
+                this.compileVarDec();
+                this.parentElement = parentCopy;
+                tokenizer.advance();
+            }
+        }
+
+        // 4. adding subroutine body statements section
         verifyKeywordOrThrowError(new KeyWord[]{KeyWord.LET, KeyWord.DO, KeyWord.IF, KeyWord.WHILE});
         Element parentCopy = this.parentElement;
         this.parentElement = subroutineBodySection;
         this.compileStatements();
         this.parentElement = parentCopy;
 
-        // 4. add symbol element
+        // 5. add symbol element
         verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_END});
         writeSymbolElement(subroutineBodySection);
+    }
+
+    private void ifElseBody(Element ifSection) {
+        // 1. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_START});
+        writeSymbolElement(ifSection);
+        tokenizer.advance();
+
+        // 2. adding statements section
+        Element parentCopy = this.parentElement;
+        this.parentElement = ifSection;
+        this.compileStatements();
+        this.parentElement = parentCopy;
+
+        // 3. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_END});
+        writeSymbolElement(ifSection);
+        tokenizer.advance();
     }
 
     private void verifyKeywordOrThrowError(KeyWord[] expectedKeywords) {
