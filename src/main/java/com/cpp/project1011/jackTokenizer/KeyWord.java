@@ -1,4 +1,4 @@
-package jackTokenizer;
+package com.cpp.project1011.jackTokenizer;
 
 public enum KeyWord {
     CLASS("CLASS"),
@@ -27,6 +27,15 @@ public enum KeyWord {
 
     KeyWord(String value) {
         this.value = value;
+    }
+
+    public static KeyWord fromValue(String value) {
+        for (KeyWord keyWord : KeyWord.values()) {
+            if (keyWord.value.equals(value.toUpperCase())) {
+                return keyWord;
+            }
+        }
+        throw new IllegalArgumentException("invalid key word value: " + value);
     }
 
     @Override

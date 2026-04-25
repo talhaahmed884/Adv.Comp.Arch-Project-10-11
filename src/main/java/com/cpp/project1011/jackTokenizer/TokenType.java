@@ -1,4 +1,4 @@
-package jackTokenizer;
+package com.cpp.project1011.jackTokenizer;
 
 public enum TokenType {
     KEYWORD("KEYWORD"),

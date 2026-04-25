@@ -1,4 +1,4 @@
-package compilationEngine;
+package com.cpp.project1011.compilationEngine;
 
 public interface CompilationEngine {
     void compileClass();
