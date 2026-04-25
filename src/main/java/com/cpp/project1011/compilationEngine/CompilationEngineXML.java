@@ -296,6 +296,7 @@ public class CompilationEngineXML implements CompilationEngine {
                 }
                 break;
 
+                // 2C. adding keyword element
                 case KEYWORD: {
                     verifyKeywordOrThrowError(new KeyWord[]{KeyWord.INT, KeyWord.CHAR, KeyWord.BOOLEAN});
                     writeKeywordElement(varSection);
