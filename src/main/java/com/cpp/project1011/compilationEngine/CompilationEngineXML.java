@@ -110,24 +110,19 @@ public class CompilationEngineXML implements CompilationEngine {
         writeKeywordElement(classVarSectionElement);
         tokenizer.advance();
 
-        // 3. adding int, char, or boolean keyword element
-        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.INT, KeyWord.CHAR, KeyWord.BOOLEAN});
-        writeKeywordElement(classVarSectionElement);
-        tokenizer.advance();
-
-        // 4. adding identifier or symbol elements
+        // 3. adding keyword, identifier or symbol elements
         while (tokenizer.hasMoreTokens()) {
             TokenType type = TokenType.valueOf(tokenizer.tokenType());
 
             switch (type) {
-                // 4A. adding identifier element
+                // 3A. adding identifier element
                 case IDENTIFIER: {
                     verifyIdentifierOrThrowError();
                     writeIdentifierElement(classVarSectionElement);
                 }
                 break;
 
-                // 4B. adding symbol COMMA or SEMICOLON element
+                // 3B. adding symbol COMMA or SEMICOLON element
                 case SYMBOL: {
                     verifySymbolOrThrowError(new Symbol[]{Symbol.COMMA, Symbol.SEMICOLON});
                     writeSymbolElement(classVarSectionElement);
@@ -137,6 +132,13 @@ public class CompilationEngineXML implements CompilationEngine {
                     if (symbol == Symbol.SEMICOLON) {
                         return;
                     }
+                }
+                break;
+
+                // 3C. adding keyword element
+                case KEYWORD: {
+                    verifyKeywordOrThrowError(new KeyWord[]{KeyWord.INT, KeyWord.CHAR, KeyWord.BOOLEAN});
+                    writeKeywordElement(classVarSectionElement);
                 }
                 break;
 
@@ -160,7 +162,6 @@ public class CompilationEngineXML implements CompilationEngine {
         verifyKeywordOrThrowError(new KeyWord[]{KeyWord.CONSTRUCTOR, KeyWord.METHOD, KeyWord.FUNCTION});
         writeKeywordElement(subroutineSectionElement);
         tokenizer.advance();
-
 
         TokenType type = TokenType.valueOf(tokenizer.tokenType());
         // 3. branching between constructor or method & function return types declaration
@@ -368,9 +369,19 @@ public class CompilationEngineXML implements CompilationEngine {
                             continue;
                         }
 
+                        // 3E. adding WHILE statements
+                        case WHILE: {
+                            verifyKeywordOrThrowError(new KeyWord[]{KeyWord.WHILE});
+                            Element parentCopy = this.parentElement;
+                            this.parentElement = statementsSection;
+                            this.compileWhile();
+                            this.parentElement = parentCopy;
+                        }
+                        break;
+
                         default: {
                             throw new InvalidParameterException("Invalid token type. Expected LET, DO, RETURN, or IF. " +
-                                    "Got token type: " + tokenizer.tokenType());
+                                    "Got token type: " + tokenizer.tokenType() + " with value: " + tokenizer.keyWord());
                         }
                     }
                 }
@@ -484,7 +495,46 @@ public class CompilationEngineXML implements CompilationEngine {
 
     @Override
     public void compileWhile() {
+        // 1. adding while section
+        Element whileSection = document.createElement(NonTerminalTag.WHILE_STATEMENT.toString());
+        this.parentElement.appendChild(whileSection);
 
+        // 2. adding keyword element
+        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.WHILE});
+        writeKeywordElement(whileSection);
+        tokenizer.advance();
+
+        // 3. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_START});
+        writeSymbolElement(whileSection);
+        tokenizer.advance();
+
+        // 4. adding expression section
+        Element parentCopy = this.parentElement;
+        this.parentElement = whileSection;
+        this.compileExpression();
+        this.parentElement = parentCopy;
+        tokenizer.advance();
+
+        // 5. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
+        writeSymbolElement(whileSection);
+        tokenizer.advance();
+
+        // 6. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_START});
+        writeSymbolElement(whileSection);
+        tokenizer.advance();
+
+        // 7. adding statements section
+        parentCopy = this.parentElement;
+        this.parentElement = whileSection;
+        this.compileStatements();
+        this.parentElement = parentCopy;
+
+        // 8. adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.CURLY_END});
+        writeSymbolElement(whileSection);
     }
 
     @Override
@@ -673,16 +723,18 @@ public class CompilationEngineXML implements CompilationEngine {
 
         // 3. branching to subroutine variables declaration
         TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
-        if (tokenType == TokenType.KEYWORD) {
+        while (tokenType == TokenType.KEYWORD) {
             KeyWord keyWord = KeyWord.fromValue(tokenizer.keyWord());
-            if (keyWord == KeyWord.VAR) {
-                // 3A. adding variables declaration
-                Element parentCopy = this.parentElement;
-                this.parentElement = subroutineBodySection;
-                this.compileVarDec();
-                this.parentElement = parentCopy;
-                tokenizer.advance();
+            if (keyWord != KeyWord.VAR) {
+                break;
             }
+            // 3A. adding variables declaration
+            Element parentCopy = this.parentElement;
+            this.parentElement = subroutineBodySection;
+            this.compileVarDec();
+            this.parentElement = parentCopy;
+            tokenizer.advance();
+            tokenType = TokenType.valueOf(tokenizer.tokenType());
         }
 
         // 4. adding subroutine body statements section
