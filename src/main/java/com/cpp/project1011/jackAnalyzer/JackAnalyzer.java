@@ -36,6 +36,7 @@ public class JackAnalyzer {
     public void analyze() throws IOException, ParserConfigurationException {
         for (String fileName : fileNames) {
             JackTokenizer tokenizer = new JackTokenizerImpl(sourcePath + fileName);
+            tokenizer.compileTokensXML();
 
             String outputFilePath = sourcePath + FilenameUtils.getBaseName(fileName) + ".xml";
 

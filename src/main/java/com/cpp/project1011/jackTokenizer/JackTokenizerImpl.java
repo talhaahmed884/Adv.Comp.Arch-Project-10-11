@@ -1,7 +1,21 @@
 package com.cpp.project1011.jackTokenizer;
 
+import com.cpp.project1011.compilationEngine.TerminalTag;
+import org.apache.commons.io.FilenameUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
@@ -9,12 +23,14 @@ import java.util.List;
 
 public class JackTokenizerImpl implements JackTokenizer {
     private final List<Token> tokenList;
+    private final String outputFilePath;
     private int tokenCounter;
 
     public JackTokenizerImpl(String fileName) throws IOException {
         this.tokenList = new ArrayList<>();
         this.tokenizeCommandsList(this.readFile(fileName));
         this.tokenCounter = 0;
+        this.outputFilePath = FilenameUtils.getFullPath(fileName) + FilenameUtils.getBaseName(fileName) + "T" + ".xml";
     }
 
     @Override
@@ -75,6 +91,71 @@ public class JackTokenizerImpl implements JackTokenizer {
         }
 
         return this.tokenList.get(this.tokenCounter).getValue();
+    }
+
+    @Override
+    public void compileTokensXML() throws ParserConfigurationException {
+        Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        Element tokenElement = document.createElement("tokens");
+        document.appendChild(tokenElement);
+
+        while (this.hasMoreTokens()) {
+            TokenType tokenType = TokenType.valueOf(tokenType());
+
+            switch (tokenType) {
+                case KEYWORD: {
+                    Element childElement = document.createElement(TerminalTag.KEYWORD.toString());
+                    childElement.setTextContent(" " + keyWord() + " ");
+                    tokenElement.appendChild(childElement);
+                }
+                break;
+
+                case SYMBOL: {
+                    Element childElement = document.createElement(TerminalTag.SYMBOL.toString());
+                    childElement.setTextContent(" " + symbol() + " ");
+                    tokenElement.appendChild(childElement);
+                }
+                break;
+
+                case INT_CONST: {
+                    Element childElement = document.createElement(TerminalTag.INTEGER_CONST.toString());
+                    childElement.setTextContent(" " + intVal() + " ");
+                    tokenElement.appendChild(childElement);
+                }
+                break;
+
+                case STRING_CONST: {
+                    Element childElement = document.createElement(TerminalTag.STRING_CONST.toString());
+                    childElement.setTextContent(" " + stringVal() + " ");
+                    tokenElement.appendChild(childElement);
+                }
+                break;
+
+                case IDENTIFIER: {
+                    Element childElement = document.createElement(TerminalTag.IDENTIFIER.toString());
+                    childElement.setTextContent(" " + identifier() + " ");
+                    tokenElement.appendChild(childElement);
+                }
+                break;
+            }
+            advance();
+        }
+        this.tokenCounter = 0;
+
+        try {
+            OutputStream outputStream = new FileOutputStream(outputFilePath);
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+
+            DOMSource domSource = new DOMSource(document);
+            StreamResult streamResult = new StreamResult(outputStream);
+            transformer.transform(domSource, streamResult);
+        } catch (Exception e) {
+            System.out.println("Unable to write XML file");
+            throw new RuntimeException(e);
+        }
     }
 
     private List<String> readFile(String fileName) throws IOException {

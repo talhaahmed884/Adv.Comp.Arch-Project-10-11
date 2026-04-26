@@ -1,5 +1,7 @@
 package com.cpp.project1011.jackTokenizer;
 
+import javax.xml.parsers.ParserConfigurationException;
+
 public interface JackTokenizer {
     boolean hasMoreTokens();
 
@@ -16,4 +18,6 @@ public interface JackTokenizer {
     int intVal();
 
     String stringVal();
+
+    void compileTokensXML() throws ParserConfigurationException;
 }
