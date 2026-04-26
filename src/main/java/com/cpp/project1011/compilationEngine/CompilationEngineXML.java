@@ -475,20 +475,37 @@ public class CompilationEngineXML implements CompilationEngine {
         writeIdentifierElement(letSection);
         tokenizer.advance();
 
-        // 4. adding symbol element
+        // 4. verifying and adding symbol element
+        verifySymbolOrThrowError(new Symbol[]{Symbol.SQUARE_START, Symbol.EQUAL});
+        if (Symbol.fromValue(String.valueOf(tokenizer.symbol())) == Symbol.SQUARE_START) {
+            // 4A. add symbol element
+            writeSymbolElement(letSection);
+            tokenizer.advance();
+
+            // 4B. add expression section
+            Element parentCopy = this.parentElement;
+            this.parentElement = letSection;
+            this.compileExpression();
+            this.parentElement = parentCopy;
+
+            // 4C. add symbol element
+            verifySymbolOrThrowError(new Symbol[]{Symbol.SQUARE_END});
+            writeSymbolElement(letSection);
+            tokenizer.advance();
+        }
+
+        // 5. adding symbol '=' element
         verifySymbolOrThrowError(new Symbol[]{Symbol.EQUAL});
         writeSymbolElement(letSection);
         tokenizer.advance();
 
-        // 5. adding expression section
-        verifyIdentifierOrThrowError();
+        // 6. adding expression section
         Element parentCopy = this.parentElement;
         this.parentElement = letSection;
         this.compileExpression();
         this.parentElement = parentCopy;
-        tokenizer.advance();
 
-        // 6. adding symbol element
+        // 7. adding symbol element
         verifySymbolOrThrowError(new Symbol[]{Symbol.SEMICOLON});
         writeSymbolElement(letSection);
     }
@@ -514,7 +531,6 @@ public class CompilationEngineXML implements CompilationEngine {
         this.parentElement = whileSection;
         this.compileExpression();
         this.parentElement = parentCopy;
-        tokenizer.advance();
 
         // 5. adding symbol element
         verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
@@ -548,15 +564,14 @@ public class CompilationEngineXML implements CompilationEngine {
         writeKeywordElement(returnSection);
         tokenizer.advance();
 
-        // 3. adding expression section
-        TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
-        if (tokenType == TokenType.IDENTIFIER) {
-            verifyIdentifierOrThrowError();
+        // 3. verifying and adding expression section
+        boolean isSemicolon = TokenType.valueOf(tokenizer.tokenType()) == TokenType.SYMBOL
+                && Symbol.fromValue(String.valueOf(tokenizer.symbol())) == Symbol.SEMICOLON;
+        if (!isSemicolon) {
             Element parentCopy = this.parentElement;
             this.parentElement = returnSection;
             this.compileExpression();
             this.parentElement = parentCopy;
-            tokenizer.advance();
         }
 
         // 4. adding symbol element
@@ -581,12 +596,10 @@ public class CompilationEngineXML implements CompilationEngine {
         tokenizer.advance();
 
         // 4. adding expression section
-        verifyIdentifierOrThrowError();
         Element parentCopy = this.parentElement;
         this.parentElement = ifSection;
         this.compileExpression();
         this.parentElement = parentCopy;
-        tokenizer.advance();
 
         // 5. adding symbol element
         verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
@@ -626,6 +639,19 @@ public class CompilationEngineXML implements CompilationEngine {
         this.parentElement = expressionSection;
         this.compileTerm();
         this.parentElement = parentCopy;
+
+        // 3. verifying and adding symbol element & term section
+        while (tokenizer.hasMoreTokens() && isOperatorSymbol()) {
+            // 3A. adding symbol element
+            writeSymbolElement(expressionSection);
+            tokenizer.advance();
+
+            // 3B. adding term section
+            parentCopy = this.parentElement;
+            this.parentElement = expressionSection;
+            this.compileTerm();
+            this.parentElement = parentCopy;
+        }
     }
 
     @Override
@@ -634,20 +660,154 @@ public class CompilationEngineXML implements CompilationEngine {
         Element termSection = document.createElement(NonTerminalTag.TERM.toString());
         this.parentElement.appendChild(termSection);
 
-        // 2. branching between identifier or symbol element
         TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
-        // 2A. adding identifier element
-        if (tokenType == TokenType.IDENTIFIER) {
-            verifyIdentifierOrThrowError();
-            writeIdentifierElement(termSection);
-        }
-        // 2B. adding keyword element
-        else if (tokenType == TokenType.KEYWORD) {
-            verifyKeywordOrThrowError(new KeyWord[]{KeyWord.THIS});
-            writeKeywordElement(termSection);
-        } else {
-            throw new InvalidParameterException("Invalid token type. Expected IDENTIFIER or KEYWORD. " +
-                    "Got token type: " + tokenizer.tokenType());
+        // 2. verifying and adding term section
+        switch (tokenType) {
+            // 2A. adding integer element
+            case INT_CONST: {
+                writeIntElement(termSection);
+                tokenizer.advance();
+            }
+            break;
+
+            // 2B. adding string element
+            case STRING_CONST: {
+                writeStringElement(termSection);
+                tokenizer.advance();
+            }
+            break;
+
+            // 2C. adding keyword element
+            case KEYWORD: {
+                verifyKeywordOrThrowError(new KeyWord[]{KeyWord.TRUE, KeyWord.FALSE, KeyWord.NULL, KeyWord.THIS});
+                writeKeywordElement(termSection);
+                tokenizer.advance();
+            }
+            break;
+
+            // 2D. adding identifier element
+            case IDENTIFIER: {
+                verifyIdentifierOrThrowError();
+                writeIdentifierElement(termSection);
+                tokenizer.advance();
+
+                // 2D-A. verifying and adding symbol element
+                if (TokenType.valueOf(tokenizer.tokenType()) == TokenType.SYMBOL) {
+                    Symbol peekSymbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
+
+                    // 2D-B. verifying if action is array related
+                    if (peekSymbol == Symbol.SQUARE_START) {
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.SQUARE_START});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+
+                        // adding expression section
+                        Element parentCopy = this.parentElement;
+                        this.parentElement = termSection;
+                        this.compileExpression();
+                        this.parentElement = parentCopy;
+
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.SQUARE_END});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+                    }
+                    // 2D-C. verifying if action is subroutine related
+                    else if (peekSymbol == Symbol.PARENTHESES_START) {
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_START});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+
+                        // adding expression list element
+                        Element parentCopy = this.parentElement;
+                        this.parentElement = termSection;
+                        this.compileExpressionList();
+                        this.parentElement = parentCopy;
+
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+                    }
+                    // 2D-D. verifying if action is subroutine calling related
+                    else if (peekSymbol == Symbol.PERIOD) {
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.PERIOD});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+
+                        // adding identifier element
+                        verifyIdentifierOrThrowError();
+                        writeIdentifierElement(termSection);
+                        tokenizer.advance();
+
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_START});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+
+                        // adding expression list section
+                        Element parentCopy = this.parentElement;
+                        this.parentElement = termSection;
+                        this.compileExpressionList();
+                        this.parentElement = parentCopy;
+
+                        // adding symbol element
+                        verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
+                        writeSymbolElement(termSection);
+                        tokenizer.advance();
+                    }
+                }
+            }
+            break;
+
+            // 2E. adding symbol element
+            case SYMBOL: {
+                Symbol symbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
+
+                // 2E-A. verifying grouped expression
+                if (symbol == Symbol.PARENTHESES_START) {
+                    // adding symbol element
+                    verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_START});
+                    writeSymbolElement(termSection);
+                    tokenizer.advance();
+
+                    // adding expression section
+                    Element parentCopy = this.parentElement;
+                    this.parentElement = termSection;
+                    this.compileExpression();
+                    this.parentElement = parentCopy;
+
+                    // adding symbol element
+                    verifySymbolOrThrowError(new Symbol[]{Symbol.PARENTHESES_END});
+                    writeSymbolElement(termSection);
+                    tokenizer.advance();
+                }
+                // 2E-B. verifying unary operations
+                else if (symbol == Symbol.MINUS || symbol == Symbol.TILDE) {
+                    // adding symbol element
+                    verifySymbolOrThrowError(new Symbol[]{Symbol.MINUS, Symbol.TILDE});
+                    writeSymbolElement(termSection);
+                    tokenizer.advance();
+
+                    // adding term section
+                    Element parentCopy = this.parentElement;
+                    this.parentElement = termSection;
+                    this.compileTerm();
+                    this.parentElement = parentCopy;
+                } else {
+                    throw new InvalidParameterException("Invalid SYMBOL in term. Expected '(', '-', or '~'. " +
+                            "Got: " + tokenizer.symbol());
+                }
+            }
+            break;
+
+            default: {
+                throw new InvalidParameterException("Invalid token type in term. Expected INT_CONST, STRING_CONST, " +
+                        "KEYWORD, IDENTIFIER, or SYMBOL. Got: " + tokenizer.tokenType());
+            }
         }
     }
 
@@ -656,58 +816,39 @@ public class CompilationEngineXML implements CompilationEngine {
         // 1. adding expression list section
         Element expressionListSection = document.createElement(NonTerminalTag.EXPRESSION_LIST.toString());
         this.parentElement.appendChild(expressionListSection);
-        boolean hasExpressions = false;
 
-        // 2. adding expression list elements
+        // 2. empty list: already at ')'
+        if (TokenType.valueOf(tokenizer.tokenType()) == TokenType.SYMBOL
+                && Symbol.fromValue(String.valueOf(tokenizer.symbol())) == Symbol.PARENTHESES_END) {
+            expressionListSection.setTextContent("\n");
+            return;
+        }
+
+        // 3. adding first expression
+        Element parentCopy = this.parentElement;
+        this.parentElement = expressionListSection;
+        this.compileExpression();
+        this.parentElement = parentCopy;
+
+        // 4. adding remaining expressions preceded by commas
         while (tokenizer.hasMoreTokens()) {
-            TokenType tokenType = TokenType.valueOf(tokenizer.tokenType());
+            verifySymbolOrThrowError(new Symbol[]{Symbol.COMMA, Symbol.PARENTHESES_END});
+            Symbol symbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
 
-            switch (tokenType) {
-                // 2A. adding identifier element
-                case IDENTIFIER: {
-                    verifyIdentifierOrThrowError();
-                    Element parentCopy = this.parentElement;
-                    this.parentElement = expressionListSection;
-                    this.compileExpression();
-                    this.parentElement = parentCopy;
-                }
-                break;
-
-                // 2B. adding symbol element
-                case SYMBOL: {
-                    verifySymbolOrThrowError(new Symbol[]{Symbol.COMMA, Symbol.PARENTHESES_END});
-                    Symbol symbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
-                    if (symbol == Symbol.COMMA) {
-                        writeSymbolElement(expressionListSection);
-                    }
-                    // 2C. expressions list has ended. Traverse back to caller!!
-                    else {
-                        if (!hasExpressions) {
-                            expressionListSection.setTextContent("\n");
-                        }
-                        return;
-                    }
-                }
-                break;
-
-                // 2C. adding keyword element
-                case KEYWORD: {
-                    verifyKeywordOrThrowError(new KeyWord[]{KeyWord.THIS});
-                    Element parentCopy = this.parentElement;
-                    this.parentElement = expressionListSection;
-                    this.compileExpression();
-                    this.parentElement = parentCopy;
-                }
-                break;
-
-                default: {
-                    throw new InvalidParameterException("Invalid token type. Expected IDENTIFIER, SYMBOL or KEYWORD. " +
-                            "Got token type: " + tokenizer.tokenType());
-                }
+            // 4A. expressions list has ended. Traverse back to caller!!
+            if (symbol == Symbol.PARENTHESES_END) {
+                return;
             }
 
-            hasExpressions = true;
+            // 4B. adding comma separator element then next expression
+            writeSymbolElement(expressionListSection);
             tokenizer.advance();
+
+            // 4C. adding expression section
+            parentCopy = this.parentElement;
+            this.parentElement = expressionListSection;
+            this.compileExpression();
+            this.parentElement = parentCopy;
         }
     }
 
@@ -856,6 +997,16 @@ public class CompilationEngineXML implements CompilationEngine {
         };
     }
 
+    private boolean isOperatorSymbol() {
+        if (TokenType.valueOf(tokenizer.tokenType()) != TokenType.SYMBOL) {
+            return false;
+        }
+        Symbol symbol = Symbol.fromValue(String.valueOf(tokenizer.symbol()));
+        return symbol == Symbol.PLUS || symbol == Symbol.MINUS || symbol == Symbol.STAR
+                || symbol == Symbol.SLASH || symbol == Symbol.AMPERSAND || symbol == Symbol.BAR
+                || symbol == Symbol.LESS_THAN || symbol == Symbol.GREATER_THAN || symbol == Symbol.EQUAL;
+    }
+
     private boolean isClassVarDecKeyword(String keyword) {
         KeyWord keyWord = KeyWord.fromValue(keyword);
 
@@ -882,6 +1033,18 @@ public class CompilationEngineXML implements CompilationEngine {
     private void writeSymbolElement(Element parentElement) {
         Element childElement = document.createElement(TerminalTag.SYMBOL.toString());
         childElement.setTextContent(" " + tokenizer.symbol() + " ");
+        parentElement.appendChild(childElement);
+    }
+
+    private void writeStringElement(Element parentElement) {
+        Element childElement = document.createElement(TerminalTag.STRING_CONST.toString());
+        childElement.setTextContent(" " + tokenizer.stringVal() + " ");
+        parentElement.appendChild(childElement);
+    }
+
+    private void writeIntElement(Element parentElement) {
+        Element childElement = document.createElement(TerminalTag.INTEGER_CONST.toString());
+        childElement.setTextContent(" " + tokenizer.intVal() + " ");
         parentElement.appendChild(childElement);
     }
 
