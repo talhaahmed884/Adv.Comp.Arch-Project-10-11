@@ -380,7 +380,7 @@ public class CompilationEngineXML implements CompilationEngine {
                         break;
 
                         default: {
-                            throw new InvalidParameterException("Invalid token type. Expected LET, DO, RETURN, or IF. " +
+                            throw new InvalidParameterException("Invalid token type. Expected LET, DO, RETURN, WHILE, or IF. " +
                                     "Got token type: " + tokenizer.tokenType() + " with value: " + tokenizer.keyWord());
                         }
                     }

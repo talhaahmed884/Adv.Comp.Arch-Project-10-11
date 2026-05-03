@@ -1,22 +1,20 @@
-package com.cpp.project1011.jackAnalyzer;
+package com.cpp.project1011.jackCompiler;
 
-import com.cpp.project1011.compilationEngine.CompilationEngine;
-import com.cpp.project1011.compilationEngine.CompilationEngineXML;
+import com.cpp.project1011.compilationEngine.CompilationEngineCode;
 import com.cpp.project1011.jackTokenizer.JackTokenizer;
 import com.cpp.project1011.jackTokenizer.JackTokenizerImpl;
 import org.apache.commons.io.FilenameUtils;
 
-import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 
-public class JackAnalyzer {
+public class JackCompiler {
     private final String[] fileNames;
     private String sourcePath;
 
-    public JackAnalyzer(String name) {
+    public JackCompiler(String name) {
         File file = new File(name);
 
         if (file.isFile()) {
@@ -38,16 +36,15 @@ public class JackAnalyzer {
         }
     }
 
-    public void analyze() throws IOException, ParserConfigurationException {
+    public void compile() throws IOException {
         for (String fileName : fileNames) {
             JackTokenizer tokenizer = new JackTokenizerImpl(sourcePath + fileName);
-            tokenizer.compileTokensXML();
 
-            String outputFilePath = sourcePath + FilenameUtils.getBaseName(fileName) + ".xml";
+            String vmOutputPath = sourcePath + FilenameUtils.getBaseName(fileName) + ".vm";
 
-            CompilationEngine compilationEngine = new CompilationEngineXML(outputFilePath, tokenizer);
+            CompilationEngineCode codeEngine = new CompilationEngineCode(vmOutputPath, tokenizer);
 
-            compilationEngine.compileClass();
+            codeEngine.compileClass();
         }
     }
 }
