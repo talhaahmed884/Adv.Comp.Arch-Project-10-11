@@ -399,7 +399,7 @@ public class CompilationEngineXML implements CompilationEngine {
 
                 default: {
                     throw new InvalidParameterException("Invalid token type. Expected KEYWORD or SYMBOL. Got token type: " +
-                            tokenizer.tokenType());
+                            tokenizer.tokenType() + " with value: " + getCurrentTokenValue());
                 }
             }
 
@@ -879,7 +879,7 @@ public class CompilationEngineXML implements CompilationEngine {
         }
 
         // 4. adding subroutine body statements section
-        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.LET, KeyWord.DO, KeyWord.IF, KeyWord.WHILE});
+        verifyKeywordOrThrowError(new KeyWord[]{KeyWord.LET, KeyWord.DO, KeyWord.IF, KeyWord.WHILE, KeyWord.RETURN});
         Element parentCopy = this.parentElement;
         this.parentElement = subroutineBodySection;
         this.compileStatements();

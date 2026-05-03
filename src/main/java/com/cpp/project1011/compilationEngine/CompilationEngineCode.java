@@ -144,7 +144,8 @@ public class CompilationEngineCode implements CompilationEngine {
         symbolTable.startSubroutine();
 
         // 5. adding THIS argument in case of a method (subroutine)
-        if (currentSubroutineType.equals(KeyWord.METHOD.toString())) {
+        if (currentSubroutineType.equals(KeyWord.METHOD.toString()) ||
+                currentSubroutineType.equals(KeyWord.METHOD.toString().toLowerCase())) {
             symbolTable.define(KeyWord.THIS.toString(), className, SymbolKind.ARG.toString());
         }
 
@@ -681,12 +682,14 @@ public class CompilationEngineCode implements CompilationEngine {
         vmWriter.writeFunction(className + "." + currentSubroutineName, nLocals);
 
         // 4. subroutine-type-specific preamble
-        if (currentSubroutineType.equals(KeyWord.CONSTRUCTOR.toString())) {
+        if (currentSubroutineType.equals(KeyWord.CONSTRUCTOR.toString()) ||
+                currentSubroutineType.equals(KeyWord.CONSTRUCTOR.toString().toLowerCase())) {
             int nFields = symbolTable.varCount(SymbolKind.FIELD.toString());
             vmWriter.writePush(Segment.CONST.toString(), nFields);
             vmWriter.writeCall(Label.MEMORY_ALLOC.toString(), 1);
             vmWriter.writePop(Segment.POINTER.toString(), 0); // anchor THIS to new object
-        } else if (currentSubroutineType.equals(KeyWord.METHOD.toString())) {
+        } else if (currentSubroutineType.equals(KeyWord.METHOD.toString()) ||
+                currentSubroutineType.equals(KeyWord.METHOD.toString().toLowerCase())) {
             vmWriter.writePush(Segment.ARG.toString(), 0);    // arg 0 is the hidden 'this' ref
             vmWriter.writePop(Segment.POINTER.toString(), 0); // anchor THIS
         }

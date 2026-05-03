@@ -190,8 +190,7 @@ public class JackTokenizerImpl implements JackTokenizer {
         StringBuilder stringBuilder = new StringBuilder();
 
         for (int a = 0; a < command.length(); a++) {
-            if ((isSymbol(String.valueOf(command.charAt(a))) || isKeyWord(String.valueOf(command.charAt(a))))
-                    && !stringBuilder.toString().trim().isEmpty()) {
+            if (isSymbol(String.valueOf(command.charAt(a))) && !stringBuilder.toString().trim().isEmpty()) {
                 this.tokenList.add(new Token(TokenType.IDENTIFIER, stringBuilder.toString().trim()));
                 stringBuilder.setLength(0);
             }
@@ -214,7 +213,8 @@ public class JackTokenizerImpl implements JackTokenizer {
             } else if (isSymbol(token)) {
                 this.tokenList.add(new Token(TokenType.SYMBOL, token));
                 stringBuilder.setLength(0);
-            } else if (isKeyWord(token)) {
+            } else if (isKeyWord(token) && (a + 1 < command.length() &&
+                    (command.charAt(a + 1) == ' ' || isSymbol(String.valueOf(command.charAt(a + 1)))))) {
                 this.tokenList.add(new Token(TokenType.KEYWORD, token));
                 stringBuilder.setLength(0);
             } else if (!token.isEmpty() && Character.isDigit(token.charAt(0))) {
