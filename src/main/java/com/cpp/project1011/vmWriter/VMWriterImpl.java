@@ -16,13 +16,13 @@ public class VMWriterImpl implements VMWriter {
     @Override
     public void writePush(String segment, int index) {
         Segment seg = Segment.valueOf(segment);
-        writer.println("push " + seg.getVmCodeValue() + " " + index);
+        writer.println(Command.push + " " + seg.getVmCodeValue() + " " + index);
     }
 
     @Override
     public void writePop(String segment, int index) {
         Segment seg = Segment.valueOf(segment);
-        writer.println("pop " + seg.getVmCodeValue() + " " + index);
+        writer.println(Command.pop + " " + seg.getVmCodeValue() + " " + index);
     }
 
     @Override
@@ -32,32 +32,32 @@ public class VMWriterImpl implements VMWriter {
 
     @Override
     public void writeLabel(String label) {
-        writer.println("label " + label);
+        writer.println(Command.label + " " + label);
     }
 
     @Override
     public void writeGoto(String label) {
-        writer.println("goto " + label);
+        writer.println(Command._goto + " " + label);
     }
 
     @Override
     public void writeIf(String label) {
-        writer.println("if-goto " + label);
+        writer.println(Command.if_goto + " " + label);
     }
 
     @Override
     public void writeCall(String name, int nArgs) {
-        writer.println("call " + name + " " + nArgs);
+        writer.println(Command.call + " " + name + " " + nArgs);
     }
 
     @Override
     public void writeFunction(String name, int nLocals) {
-        writer.println("function " + name + " " + nLocals);
+        writer.println(Command.function + " " + name + " " + nLocals);
     }
 
     @Override
     public void writeReturn() {
-        writer.println("return");
+        writer.println(Command._return);
     }
 
     @Override
